@@ -5,6 +5,7 @@
 #include <string>
 #include <jni.h>
 #include "codec/CodecOpus.h"
+#include "include/opusenc.h"
 #include "utils/SamplesConverter.h"
 
 CodecOpus codec;
@@ -154,4 +155,28 @@ Java_com_theeasiestway_opus_Opus_convert___3S(JNIEnv *env, jobject thiz, jshortA
     env->ReleaseShortArrayElements(shorts, nativeShorts, 0);
 
     return result;
+}
+
+// save 
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_theeasiestway_opus_Opus_saveOpusFile(JNIEnv *env, jobject thiz,
+                                                 jstring path, jshortArray pcmData) {
+    const char *cpath = env->GetStringUTFChars(path, nullptr);
+    jshort *pcm = env->GetShortArrayElements(pcmData, nullptr);
+    jsize length = env->GetArrayLength(pcmData);
+
+    int error;
+    OggOpusComments *comments = ope_comments_create();
+    OggOpusEnc *enc = ope_encoder_create_file(cpath, comments, 48000, 2, 0, &error);
+
+    if (error == OPE_OK) {
+        ope_encoder_write(enc, (const opus_int16*)pcm, length / 2);
+        ope_encoder_drain(enc);
+        ope_encoder_destroy(enc);
+    }
+
+    ope_comments_destroy(comments);
+    env->ReleaseStringUTFChars(path, cpath);
+    env->ReleaseShortArrayElements(pcmData, pcm, 0);
 }
