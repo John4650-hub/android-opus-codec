@@ -5,7 +5,7 @@
 #include <string>
 #include <jni.h>
 #include "codec/CodecOpus.h"
-#include "opusenc.h"
+#include <opusenc.h>
 #include "utils/SamplesConverter.h"
 
 CodecOpus codec;
