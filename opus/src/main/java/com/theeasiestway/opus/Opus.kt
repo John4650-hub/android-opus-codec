@@ -76,4 +76,12 @@ class Opus {
 
     external fun convert(bytes: ByteArray): ShortArray?
     external fun convert(shorts: ShortArray): ByteArray?
+    //save
+    external fun saveOpusFile(
+    path: String,
+    pcmData: ShortArray,
+    sampleRate: Int,
+    channels: Int,
+    family: Int //0(for mono/stereo or 1 for others)
+)
 }
