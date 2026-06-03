@@ -9,7 +9,8 @@
 #include "utils/SamplesConverter.h"
 
 CodecOpus codec;
-
+OggOpusEnc *g_enc=nullptr;
+OggOpusComments *g_comments=nullptr;
 //
 // Encoding
 //
@@ -158,32 +159,61 @@ Java_com_theeasiestway_opus_Opus_convert___3S(JNIEnv *env, jobject thiz, jshortA
 }
 
 // save
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_theeasiestway_opus_Opus_saveOpusFile(JNIEnv *env, jobject thiz,
-                                                 jstring path,
-                                                 jshortArray pcmData,
-                                                 jint sampleRate,
-                                                 jint channels,
-                                                 jint family) {
+
+// Global encoder instance
+static OggOpusEnc* g_enc = nullptr;
+static OggOpusComments* g_comments = nullptr;
+
+extern "C" {
+
+// 1. Initialization function
+JNIEXPORT jint JNICALL
+Java_com_theeasiestway_opus_Opus_oggEncoderInit(JNIEnv *env, jobject thiz,
+                                                jstring path,
+                                                jint sampleRate,
+                                                jint channels,
+                                                jint family) {
     const char *cpath = env->GetStringUTFChars(path, nullptr);
+
+    int error;
+    g_comments = ope_comments_create();
+    ope_comments_add(g_comments, "TITLE", "Recording");
+    ope_comments_add(g_comments, "ARTIST", "User");
+
+    g_enc = ope_encoder_create_file(cpath, g_comments,
+                                    sampleRate, channels, family, &error);
+
+    env->ReleaseStringUTFChars(path, cpath);
+
+    return error; // return OPE_OK (0) if success, else error code
+}
+
+// 2. Streaming write function
+JNIEXPORT jint JNICALL
+Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
+                                               jshortArray pcmData,
+                                               jint channels) {
+    if (!g_enc) return OPE_INTERNAL_ERROR;
+
     jshort *pcm = env->GetShortArrayElements(pcmData, nullptr);
     jsize length = env->GetArrayLength(pcmData);
 
-    int error;
-    OggOpusComments *comments = ope_comments_create();
-    // Use parameters passed from Java/Kotlin
-    OggOpusEnc *enc = ope_encoder_create_file(cpath, comments,
-                                              sampleRate, channels, family, &error);
+    int err = ope_encoder_write(g_enc, (const opus_int16*)pcm, length / channels);
 
-    if (error == OPE_OK) {
-        // samples_per_channel = total samples / number of channels
-        ope_encoder_write(enc, (const opus_int16*)pcm, length / channels);
-        ope_encoder_drain(enc);
-        ope_encoder_destroy(enc);
-    }
-
-    ope_comments_destroy(comments);
-    env->ReleaseStringUTFChars(path, cpath);
     env->ReleaseShortArrayElements(pcmData, pcm, 0);
+    return err;
+}
+
+// 3. Finalization function
+JNIEXPORT void JNICALL
+Java_com_theeasiestway_opus_Opus_closeOggEncoder(JNIEnv *env, jobject thiz) {
+    if (g_enc) {
+        ope_encoder_drain(g_enc);
+        ope_encoder_destroy(g_enc);
+        g_enc = nullptr;
+    }
+    if (g_comments) {
+        ope_comments_destroy(g_comments);
+        g_comments = nullptr;
+    }
 }
