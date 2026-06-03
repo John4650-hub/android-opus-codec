@@ -9,8 +9,10 @@
 #include "utils/SamplesConverter.h"
 
 CodecOpus codec;
-OggOpusEnc *g_enc=nullptr;
-OggOpusComments *g_comments=nullptr;
+// Global encoder instance
+static OggOpusEnc* g_enc = nullptr;
+static OggOpusComments* g_comments = nullptr;
+
 //
 // Encoding
 //
@@ -159,14 +161,7 @@ Java_com_theeasiestway_opus_Opus_convert___3S(JNIEnv *env, jobject thiz, jshortA
 }
 
 // save
-
-// Global encoder instance
-static OggOpusEnc* g_enc = nullptr;
-static OggOpusComments* g_comments = nullptr;
-
-extern "C" {
-
-// 1. Initialization function
+extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_oggEncoderInit(JNIEnv *env, jobject thiz,
                                                 jstring path,
@@ -188,7 +183,7 @@ Java_com_theeasiestway_opus_Opus_oggEncoderInit(JNIEnv *env, jobject thiz,
     return error; // return OPE_OK (0) if success, else error code
 }
 
-// 2. Streaming write function
+extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
                                                jshortArray pcmData,
@@ -204,7 +199,7 @@ Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
     return err;
 }
 
-// 3. Finalization function
+extern "C"
 JNIEXPORT void JNICALL
 Java_com_theeasiestway_opus_Opus_closeOggEncoder(JNIEnv *env, jobject thiz) {
     if (g_enc) {
