@@ -157,21 +157,28 @@ Java_com_theeasiestway_opus_Opus_convert___3S(JNIEnv *env, jobject thiz, jshortA
     return result;
 }
 
-// save 
+// save
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_theeasiestway_opus_Opus_saveOpusFile(JNIEnv *env, jobject thiz,
-                                                 jstring path, jshortArray pcmData) {
+                                                 jstring path,
+                                                 jshortArray pcmData,
+                                                 jint sampleRate,
+                                                 jint channels,
+                                                 jint family) {
     const char *cpath = env->GetStringUTFChars(path, nullptr);
     jshort *pcm = env->GetShortArrayElements(pcmData, nullptr);
     jsize length = env->GetArrayLength(pcmData);
 
     int error;
     OggOpusComments *comments = ope_comments_create();
-    OggOpusEnc *enc = ope_encoder_create_file(cpath, comments, 48000, 2, 0, &error);
+    // Use parameters passed from Java/Kotlin
+    OggOpusEnc *enc = ope_encoder_create_file(cpath, comments,
+                                              sampleRate, channels, family, &error);
 
     if (error == OPE_OK) {
-        ope_encoder_write(enc, (const opus_int16*)pcm, length / 2);
+        // samples_per_channel = total samples / number of channels
+        ope_encoder_write(enc, (const opus_int16*)pcm, length / channels);
         ope_encoder_drain(enc);
         ope_encoder_destroy(enc);
     }
