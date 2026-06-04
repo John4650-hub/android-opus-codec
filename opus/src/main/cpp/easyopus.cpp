@@ -4,15 +4,18 @@
 
 #include <string>
 #include <jni.h>
-#include "codec/CodecOpus.h"
+#include <vector>
+#include <cmath>
 #include "opusenc.h"
+#include "opusfile.h"
+#include "codec/CodecOpus.h"
 #include "utils/SamplesConverter.h"
 
 CodecOpus codec;
 // Global encoder instance
 static OggOpusEnc* g_enc = nullptr;
 static OggOpusComments* g_comments = nullptr;
-
+static OggOpusFile* opusFile = nullptr;
 //
 // Encoding
 //
@@ -209,3 +212,106 @@ Java_com_theeasiestway_opus_Opus_closeOggEncoder(JNIEnv *env, jobject thiz) {
         g_comments = nullptr;
     }
 }
+
+/**
+ * Open Opus file.
+ */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_audio_OpusJNI_openFile(JNIEnv* env, jobject thiz, jstring path) {
+    const char* filePath = env->GetStringUTFChars(path, nullptr);
+    int error;
+    opusFile = op_open_file(filePath, &error);
+    env->ReleaseStringUTFChars(path, filePath);
+    return (error == 0 && opusFile) ? 0 : error;
+}
+
+/**
+ * Seek to given time (milliseconds).
+ */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_audio_OpusJNI_seekMs(JNIEnv* env, jobject thiz, jlong ms) {
+    if (!opusFile) return OP_EFAULT;
+    ogg_int64_t pcmOffset = (ms * 48); // 48 samples per ms at 48kHz
+    return op_pcm_seek(opusFile, pcmOffset);
+}
+
+/**
+ * Decode next chunk and return PCM as byte[].
+ */
+extern "C"
+JNIEXPORT jbyteArray JNICALL
+Java_com_example_audio_OpusJNI_decodeChunk(JNIEnv* env, jobject thiz, jint maxSamples) {
+    if (!opusFile) return nullptr;
+
+    std::vector<opus_int16> pcm(maxSamples); // mono
+    int samplesDecoded = op_read(opusFile, pcm.data(), pcm.size(), nullptr);
+
+    if (samplesDecoded <= 0) return nullptr;
+
+    jbyteArray output = env->NewByteArray(samplesDecoded * sizeof(opus_int16));
+    env->SetByteArrayRegion(output, 0, samplesDecoded * sizeof(opus_int16),
+                            reinterpret_cast<jbyte*>(pcm.data()));
+    return output;
+}
+
+/**
+ * Compute amplitude (RMS) of last decoded chunk.
+ */
+extern "C"
+JNIEXPORT jfloat JNICALL
+Java_com_example_audio_OpusJNI_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
+    jsize len = env->GetArrayLength(pcmData);
+    jbyte* buf = env->GetByteArrayElements(pcmData, nullptr);
+
+    int16_t* samples = reinterpret_cast<int16_t*>(buf);
+    int sampleCount = len / sizeof(int16_t);
+
+    double sumSq = 0.0;
+    for (int i = 0; i < sampleCount; i++) {
+        sumSq += samples[i] * samples[i];
+    }
+    env->ReleaseByteArrayElements(pcmData, buf, JNI_ABORT);
+
+    double rms = sqrt(sumSq / sampleCount);
+    return static_cast<float>(rms / 32768.0f); // normalize 0.0–1.0
+}
+
+/**
+ * Get current playback position in milliseconds.
+ */
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_example_audio_OpusJNI_getPosition(JNIEnv* env, jobject thiz) {
+    if (!opusFile) return -1;
+    ogg_int64_t posSamples = op_pcm_tell(opusFile);
+    if (posSamples < 0) return -1;
+    return posSamples / 48; // convert samples → ms (48 samples per ms at 48kHz)
+}
+
+/**
+ * Get total duration of the file in milliseconds.
+ */
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_example_audio_OpusJNI_getDuration(JNIEnv* env, jobject thiz) {
+    if (!opusFile) return -1;
+    ogg_int64_t totalSamples = op_pcm_total(opusFile, -1); 
+    if (totalSamples < 0) return -1;
+    return totalSamples / 48; // convert samples → ms
+}
+
+
+/**
+ * Close file.
+ */
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_audio_OpusJNI_closeFile(JNIEnv* env, jobject thiz) {
+    if (opusFile) {
+        op_free(opusFile);
+        opusFile = nullptr;
+    }
+}
+
