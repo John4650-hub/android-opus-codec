@@ -172,9 +172,6 @@ Java_com_theeasiestway_opus_Opus_oggEncoderInit(JNIEnv *env, jobject thiz,
 
     int error;
     g_comments = ope_comments_create();
-    ope_comments_add(g_comments, "TITLE", "Recording");
-    ope_comments_add(g_comments, "ARTIST", "User");
-
     g_enc = ope_encoder_create_file(cpath, g_comments,
                                     sampleRate, channels, family, &error);
 
