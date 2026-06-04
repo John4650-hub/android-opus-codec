@@ -35,10 +35,12 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 add_library(opus SHARED IMPORTED)
 add_library(opusenc SHARED IMPORTED)
 add_library(opusfile STATIC IMPORTED)
+add_library(ogg STATIC IMPORTED)
 
 set_target_properties(opus PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/lib/${ANDROID_ABI}/libopus.so)
 set_target_properties(opusenc PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/lib/${ANDROID_ABI}/libopusenc.so)
 set_target_properties(opusfile PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/lib/${ANDROID_ABI}/libopusfile.a)
+set_target_properties(ogg PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/lib/${ANDROID_ABI}/libogg.a)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -62,6 +64,7 @@ target_link_libraries( # Specifies the target library.
                        opus
                        opusenc
                        opusfile
+                       ogg
                        # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )
