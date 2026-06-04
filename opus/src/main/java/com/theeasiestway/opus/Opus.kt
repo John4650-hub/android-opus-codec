@@ -80,5 +80,12 @@ class Opus {
     external fun oggEncoderInit(path: String, sampleRate: Int, channels: Int, family: Int): Int
     external fun writeChunk(pcmData: ShortArray, channels: Int): Int
     external fun closeOggEncoder()
-
+    //opusfile
+    external fun openFile(fileName:String):Int
+    external fun seekMs(ms:Long):Int
+    external fun decodeChunk(maxSamples:Int):ByteArray
+    external fun getAmplitude(pcmData:ByteArray):Float
+    external fun getPosition():Long
+    external fun getDuration():Long
+    external fun closeFile()
 }
