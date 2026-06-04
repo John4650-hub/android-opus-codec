@@ -60,6 +60,8 @@ target_link_libraries( # Specifies the target library.
                        opus
                        opusenc
                        opusfile
+                       ogg
+                       opusurl
                        # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )
