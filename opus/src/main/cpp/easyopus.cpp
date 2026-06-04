@@ -1,5 +1,6 @@
 //
 // Created by Loboda Alexey on 21.05.2020.
+// Updated by Kafuuma John Delvin on 05.06.2026
 //
 
 #include <string>
@@ -218,7 +219,7 @@ Java_com_theeasiestway_opus_Opus_closeOggEncoder(JNIEnv *env, jobject thiz) {
  */
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_example_audio_OpusJNI_openFile(JNIEnv* env, jobject thiz, jstring path) {
+Java_com_theeasiestway_opus_Opus_openFile(JNIEnv* env, jobject thiz, jstring path) {
     const char* filePath = env->GetStringUTFChars(path, nullptr);
     int error;
     opusFile = op_open_file(filePath, &error);
@@ -231,7 +232,7 @@ Java_com_example_audio_OpusJNI_openFile(JNIEnv* env, jobject thiz, jstring path)
  */
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_example_audio_OpusJNI_seekMs(JNIEnv* env, jobject thiz, jlong ms) {
+Java_com_theeasiestway_opus_Opus_seekMs(JNIEnv* env, jobject thiz, jlong ms) {
     if (!opusFile) return OP_EFAULT;
     ogg_int64_t pcmOffset = (ms * 48); // 48 samples per ms at 48kHz
     return op_pcm_seek(opusFile, pcmOffset);
@@ -242,7 +243,7 @@ Java_com_example_audio_OpusJNI_seekMs(JNIEnv* env, jobject thiz, jlong ms) {
  */
 extern "C"
 JNIEXPORT jbyteArray JNICALL
-Java_com_example_audio_OpusJNI_decodeChunk(JNIEnv* env, jobject thiz, jint maxSamples) {
+Java_com_theeasiestway_opus_Opus_decodeChunk(JNIEnv* env, jobject thiz, jint maxSamples) {
     if (!opusFile) return nullptr;
 
     std::vector<opus_int16> pcm(maxSamples); // mono
@@ -261,7 +262,7 @@ Java_com_example_audio_OpusJNI_decodeChunk(JNIEnv* env, jobject thiz, jint maxSa
  */
 extern "C"
 JNIEXPORT jfloat JNICALL
-Java_com_example_audio_OpusJNI_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
+Java_com_theeasiestway_opus_Opus_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
     jsize len = env->GetArrayLength(pcmData);
     jbyte* buf = env->GetByteArrayElements(pcmData, nullptr);
 
@@ -275,7 +276,7 @@ Java_com_example_audio_OpusJNI_getAmplitude(JNIEnv* env, jobject thiz, jbyteArra
     env->ReleaseByteArrayElements(pcmData, buf, JNI_ABORT);
 
     double rms = sqrt(sumSq / sampleCount);
-    return static_cast<float>(rms / 32768.0f); // normalize 0.0–1.0
+    return static_cast<float>(rms / 32768.0f); // normalize 0.0â€“1.0
 }
 
 /**
@@ -283,11 +284,11 @@ Java_com_example_audio_OpusJNI_getAmplitude(JNIEnv* env, jobject thiz, jbyteArra
  */
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_example_audio_OpusJNI_getPosition(JNIEnv* env, jobject thiz) {
+Java_com_theeasiestway_opus_Opus_getPosition(JNIEnv* env, jobject thiz) {
     if (!opusFile) return -1;
     ogg_int64_t posSamples = op_pcm_tell(opusFile);
     if (posSamples < 0) return -1;
-    return posSamples / 48; // convert samples → ms (48 samples per ms at 48kHz)
+    return posSamples / 48; // convert samples â†’ ms (48 samples per ms at 48kHz)
 }
 
 /**
@@ -295,11 +296,11 @@ Java_com_example_audio_OpusJNI_getPosition(JNIEnv* env, jobject thiz) {
  */
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_example_audio_OpusJNI_getDuration(JNIEnv* env, jobject thiz) {
+Java_com_theeasiestway_opus_Opus_getDuration(JNIEnv* env, jobject thiz) {
     if (!opusFile) return -1;
     ogg_int64_t totalSamples = op_pcm_total(opusFile, -1); 
     if (totalSamples < 0) return -1;
-    return totalSamples / 48; // convert samples → ms
+    return totalSamples / 48; // convert samples â†’ ms
 }
 
 
@@ -308,7 +309,7 @@ Java_com_example_audio_OpusJNI_getDuration(JNIEnv* env, jobject thiz) {
  */
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_audio_OpusJNI_closeFile(JNIEnv* env, jobject thiz) {
+Java_com_theeasiestway_opus_Opus_closeFile(JNIEnv* env, jobject thiz) {
     if (opusFile) {
         op_free(opusFile);
         opusFile = nullptr;
