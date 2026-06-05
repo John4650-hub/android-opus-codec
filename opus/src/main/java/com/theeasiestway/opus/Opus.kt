@@ -84,7 +84,7 @@ class Opus {
     external fun openFile(fileName:String):Int
     external fun seekMs(ms:Long):Int
     external fun decodeChunk(maxSamples:Int):ByteArray?
-    external fun getAmplitude(pcmData:ByteArray):Float
+    external fun getAmplitude(pcmData:ByteArray):Int
     external fun getPosition():Long
     external fun getDuration():Long
     external fun closeFile()
