@@ -263,7 +263,7 @@ Java_com_theeasiestway_opus_Opus_decodeChunk(JNIEnv* env, jobject thiz, jint max
  */
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_example_audio_OpusJNI_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
+Java_com_theeasiestway_opus_Opus_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
     jsize len = env->GetArrayLength(pcmData);
     jbyte* buf = env->GetByteArrayElements(pcmData, nullptr);
 
