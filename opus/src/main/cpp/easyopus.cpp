@@ -258,25 +258,26 @@ Java_com_theeasiestway_opus_Opus_decodeChunk(JNIEnv* env, jobject thiz, jint max
 }
 
 /**
- * Compute amplitude (RMS) of last decoded chunk.
+ * Compute peak amplitude of last decoded chunk.
+ * Trying to replicate MediaRecorder.getMaxAmplitude()
  */
 extern "C"
-JNIEXPORT jfloat JNICALL
-Java_com_theeasiestway_opus_Opus_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
+JNIEXPORT jint JNICALL
+Java_com_example_audio_OpusJNI_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
     jsize len = env->GetArrayLength(pcmData);
     jbyte* buf = env->GetByteArrayElements(pcmData, nullptr);
 
     int16_t* samples = reinterpret_cast<int16_t*>(buf);
     int sampleCount = len / sizeof(int16_t);
 
-    double sumSq = 0.0;
+    int maxAmp = 0;
     for (int i = 0; i < sampleCount; i++) {
-        sumSq += samples[i] * samples[i];
+        int amp = std::abs(samples[i]); // absolute value
+        if (amp > maxAmp) maxAmp = amp;
     }
-    env->ReleaseByteArrayElements(pcmData, buf, JNI_ABORT);
 
-    double rms = sqrt(sumSq / sampleCount);
-    return static_cast<float>(rms / 32768.0f); // normalize 0.0â€“1.0
+    env->ReleaseByteArrayElements(pcmData, buf, JNI_ABORT);
+    return maxAmp; // 0–32767
 }
 
 /**
