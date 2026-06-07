@@ -1,6 +1,6 @@
 //
 // Created by Loboda Alexey on 21.05.2020.
-// Updated by Kafuuma John Delvin on 05.06.2026
+// Updated by Kafuuma John Delvin from 05.06.2026 - current
 //
 
 #include <string>
@@ -9,6 +9,7 @@
 #include <cmath>
 #include "opusenc.h"
 #include "opusfile.h"
+#include "rnnoise.h"
 #include "codec/CodecOpus.h"
 #include "utils/SamplesConverter.h"
 
@@ -17,28 +18,28 @@ CodecOpus codec;
 static OggOpusEnc* g_enc = nullptr;
 static OggOpusComments* g_comments = nullptr;
 static OggOpusFile* opusFile = nullptr;
+// Global RNNoise state
+static DenoiseState* g_state = nullptr;
+
 //
 // Encoding
 //
 
-extern "C"
+extern "C" {
 JNIEXPORT jint JNICALL Java_com_theeasiestway_opus_Opus_encoderInit(JNIEnv *env, jobject thiz, jint sample_rate, jint num_channels, jint application) {
     return codec.encoderInit(sample_rate, num_channels, application);
 }
 
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_encoderSetBitrate(JNIEnv *env, jobject thiz, jint bitrate) {
     return codec.encoderSetBitrate(bitrate);
 }
 
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_encoderSetComplexity(JNIEnv *env, jobject thiz, jint complexity) {
     return codec.encoderSetComplexity(complexity);
 }
 
-extern "C"
 JNIEXPORT jbyteArray JNICALL
 Java_com_theeasiestway_opus_Opus_encode___3BI(JNIEnv *env, jobject thiz, jbyteArray bytes, jint frame_size) {
     jbyte *nativeBytes = env->GetByteArrayElements(bytes, 0);
@@ -53,7 +54,6 @@ Java_com_theeasiestway_opus_Opus_encode___3BI(JNIEnv *env, jobject thiz, jbyteAr
     return result;
 }
 
-extern "C"
 JNIEXPORT jshortArray JNICALL
 Java_com_theeasiestway_opus_Opus_encode___3SI(JNIEnv *env, jobject thiz, jshortArray shorts, jint frame_size) {
     jshort *nativeShorts = env->GetShortArrayElements(shorts, 0);
@@ -70,7 +70,6 @@ Java_com_theeasiestway_opus_Opus_encode___3SI(JNIEnv *env, jobject thiz, jshortA
     return result;
 }
 
-extern "C"
 JNIEXPORT void JNICALL
 Java_com_theeasiestway_opus_Opus_encoderRelease(JNIEnv *env, jobject thiz) {
     codec.encoderRelease();
@@ -80,13 +79,11 @@ Java_com_theeasiestway_opus_Opus_encoderRelease(JNIEnv *env, jobject thiz) {
 // Decoding
 //
 
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_decoderInit(JNIEnv *env, jobject thiz, jint sample_rate, jint num_channels) {
     return codec.decoderInit(sample_rate, num_channels);
 }
 
-extern "C"
 JNIEXPORT jbyteArray JNICALL
 Java_com_theeasiestway_opus_Opus_decode___3BII(JNIEnv *env, jobject thiz, jbyteArray bytes, jint frame_size, jint fec) {
     jbyte *nativeBytes = env->GetByteArrayElements(bytes, 0);
@@ -103,7 +100,6 @@ Java_com_theeasiestway_opus_Opus_decode___3BII(JNIEnv *env, jobject thiz, jbyteA
     return result;
 }
 
-extern "C"
 JNIEXPORT jshortArray JNICALL
 Java_com_theeasiestway_opus_Opus_decode___3SII(JNIEnv *env, jobject thiz, jshortArray shorts, jint frame_size, jint fec) {
     jshort *nativeShorts = env->GetShortArrayElements(shorts, 0);
@@ -120,7 +116,6 @@ Java_com_theeasiestway_opus_Opus_decode___3SII(JNIEnv *env, jobject thiz, jshort
     return result;
 }
 
-extern "C"
 JNIEXPORT void JNICALL
 Java_com_theeasiestway_opus_Opus_decoderRelease(JNIEnv *env, jobject thiz) {
     codec.decoderRelease();
@@ -130,7 +125,6 @@ Java_com_theeasiestway_opus_Opus_decoderRelease(JNIEnv *env, jobject thiz) {
 // Utils
 //
 
-extern "C"
 JNIEXPORT jshortArray JNICALL
 Java_com_theeasiestway_opus_Opus_convert___3B(JNIEnv *env, jobject thiz, jbyteArray bytes) {
     uint8_t *nativeBytes = (uint8_t *) env->GetByteArrayElements(bytes, 0);
@@ -147,7 +141,6 @@ Java_com_theeasiestway_opus_Opus_convert___3B(JNIEnv *env, jobject thiz, jbyteAr
     return result;
 }
 
-extern "C"
 JNIEXPORT jbyteArray JNICALL
 Java_com_theeasiestway_opus_Opus_convert___3S(JNIEnv *env, jobject thiz, jshortArray shorts) {
     short *nativeShorts = env->GetShortArrayElements(shorts, 0);
@@ -165,7 +158,6 @@ Java_com_theeasiestway_opus_Opus_convert___3S(JNIEnv *env, jobject thiz, jshortA
 }
 
 // save
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_oggEncoderInit(JNIEnv *env, jobject thiz,
                                                 jstring path,
@@ -184,15 +176,31 @@ Java_com_theeasiestway_opus_Opus_oggEncoderInit(JNIEnv *env, jobject thiz,
     return error; // return OPE_OK (0) if success, else error code
 }
 
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
                                                jshortArray pcmData,
-                                               jint channels) {
+                                               jint channels,
+   jint frame_size,
+                                               jboolean denoise) {
     if (!g_enc) return OPE_INTERNAL_ERROR;
 
     jshort *pcm = env->GetShortArrayElements(pcmData, nullptr);
     jsize length = env->GetArrayLength(pcmData);
+
+    if (denoise == JNI_TRUE && g_state != nullptr) {
+        int total_frames = length / frame_size;
+        float in[frame_size], out[frame_size];
+
+        for (int f = 0; f < total_frames; f++) {
+            for (int i = 0; i < frame_size; i++) {
+                in[i] = static_cast<float>(pcm[f * frame_size + i]);
+            }
+            rnnoise_process_frame(g_state, out, in);
+            for (int i = 0; i < frame_size; i++) {
+                pcm[f * frame_size + i] = static_cast<jshort>(out[i]);
+            }
+        }
+    }
 
     int err = ope_encoder_write(g_enc, (const opus_int16*)pcm, length / channels);
 
@@ -200,7 +208,7 @@ Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
     return err;
 }
 
-extern "C"
+
 JNIEXPORT void JNICALL
 Java_com_theeasiestway_opus_Opus_closeOggEncoder(JNIEnv *env, jobject thiz) {
     if (g_enc) {
@@ -217,7 +225,6 @@ Java_com_theeasiestway_opus_Opus_closeOggEncoder(JNIEnv *env, jobject thiz) {
 /**
  * Open Opus file.
  */
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_openFile(JNIEnv* env, jobject thiz, jstring path) {
     const char* filePath = env->GetStringUTFChars(path, nullptr);
@@ -230,7 +237,6 @@ Java_com_theeasiestway_opus_Opus_openFile(JNIEnv* env, jobject thiz, jstring pat
 /**
  * Seek to given time (milliseconds).
  */
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_seekMs(JNIEnv* env, jobject thiz, jlong ms) {
     if (!opusFile) return OP_EFAULT;
@@ -241,7 +247,6 @@ Java_com_theeasiestway_opus_Opus_seekMs(JNIEnv* env, jobject thiz, jlong ms) {
 /**
  * Decode next chunk and return PCM as byte[].
  */
-extern "C"
 JNIEXPORT jbyteArray JNICALL
 Java_com_theeasiestway_opus_Opus_decodeChunk(JNIEnv* env, jobject thiz, jint maxSamples) {
     if (!opusFile) return nullptr;
@@ -261,7 +266,6 @@ Java_com_theeasiestway_opus_Opus_decodeChunk(JNIEnv* env, jobject thiz, jint max
  * Compute peak amplitude of last decoded chunk.
  * Trying to replicate MediaRecorder.getMaxAmplitude()
  */
-extern "C"
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_getAmplitude(JNIEnv* env, jobject thiz, jbyteArray pcmData) {
     jsize len = env->GetArrayLength(pcmData);
@@ -277,38 +281,35 @@ Java_com_theeasiestway_opus_Opus_getAmplitude(JNIEnv* env, jobject thiz, jbyteAr
     }
 
     env->ReleaseByteArrayElements(pcmData, buf, JNI_ABORT);
-    return maxAmp; // 0–32767
+    return maxAmp; // 0â€“32767
 }
 
 /**
  * Get current playback position in milliseconds.
  */
-extern "C"
 JNIEXPORT jlong JNICALL
 Java_com_theeasiestway_opus_Opus_getPosition(JNIEnv* env, jobject thiz) {
     if (!opusFile) return -1;
     ogg_int64_t posSamples = op_pcm_tell(opusFile);
     if (posSamples < 0) return -1;
-    return posSamples / 48; // convert samples â†’ ms (48 samples per ms at 48kHz)
+    return posSamples / 48; // convert samples Ã¢â€ â€™ ms (48 samples per ms at 48kHz)
 }
 
 /**
  * Get total duration of the file in milliseconds.
  */
-extern "C"
 JNIEXPORT jlong JNICALL
 Java_com_theeasiestway_opus_Opus_getDuration(JNIEnv* env, jobject thiz) {
     if (!opusFile) return -1;
     ogg_int64_t totalSamples = op_pcm_total(opusFile, -1); 
     if (totalSamples < 0) return -1;
-    return totalSamples / 48; // convert samples â†’ ms
+    return totalSamples / 48; // convert samples Ã¢â€ â€™ ms
 }
 
 
 /**
  * Close file.
  */
-extern "C"
 JNIEXPORT void JNICALL
 Java_com_theeasiestway_opus_Opus_closeFile(JNIEnv* env, jobject thiz) {
     if (opusFile) {
@@ -317,3 +318,67 @@ Java_com_theeasiestway_opus_Opus_closeFile(JNIEnv* env, jobject thiz) {
     }
 }
 
+//rnnoise
+// Initialize RNNoise with default model
+JNIEXPORT void JNICALL
+Java_com_theeasiestway_opus_Opus_denoiserInit(JNIEnv* env, jobject thiz) {
+    if (g_state == nullptr) {
+        g_state = rnnoise_create(nullptr);
+    }
+}
+
+// Process PCM array with given frame size
+JNIEXPORT jshortArray JNICALL
+Java_com_theeasiestway_opus_Opus_denoiserProcess(JNIEnv* env, jobject thiz, jshortArray inputArray, jint frameSize) {
+    if (g_state == nullptr) {
+        return inputArray; // not initialized
+    }
+
+    jsize len = env->GetArrayLength(inputArray);
+    jshort* input = env->GetShortArrayElements(inputArray, nullptr);
+
+    // Compute how many frames fit into the array
+    int total_frames = len / frameSize;
+
+    // Prepare output buffer
+    jshortArray outputArray = env->NewShortArray(len);
+    jshort* output = env->GetShortArrayElements(outputArray, nullptr);
+
+    float* in  = new float[frameSize];
+    float* out = new float[frameSize];
+
+    for (int f = 0; f < total_frames; f++) {
+        // Copy one frame into float buffer
+        for (int i = 0; i < frameSize; i++) {
+            in[i] = static_cast<float>(input[f * frameSize + i]);
+        }
+
+        // Denoise one frame
+        rnnoise_process_frame(g_state, out, in);
+
+        // Copy back to output
+        for (int i = 0; i < frameSize; i++) {
+            output[f * frameSize + i] = static_cast<jshort>(out[i]);
+        }
+    }
+
+    delete[] in;
+    delete[] out;
+
+    // Release arrays
+    env->ReleaseShortArrayElements(inputArray, input, JNI_ABORT);
+    env->ReleaseShortArrayElements(outputArray, output, 0);
+
+    return outputArray;
+}
+
+// Destroy RNNoise state
+JNIEXPORT void JNICALL
+Java_com_theeasiestway_opus_Opus_denoiserDestroy(JNIEnv* env, jobject thiz) {
+    if (g_state != nullptr) {
+        rnnoise_destroy(g_state);
+        g_state = nullptr;
+    }
+}
+
+} // extern "C"
