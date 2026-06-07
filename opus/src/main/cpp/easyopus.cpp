@@ -188,7 +188,7 @@ Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
     jsize length = env->GetArrayLength(pcmData);
     
     if (denoise == JNI_TRUE && g_state != nullptr) {
-        int total_frames = length / frameSize
+        int total_frames = length / frameSize;
         float in[frameSize], out[frameSize];
 
         for (int f = 0; f < total_frames; f++) {
