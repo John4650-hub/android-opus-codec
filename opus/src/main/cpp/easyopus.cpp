@@ -178,31 +178,39 @@ Java_com_theeasiestway_opus_Opus_oggEncoderInit(JNIEnv *env, jobject thiz,
 
 JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
-                                               jshortArray pcmData,
-                                               jint channels,
-                                                jint frameSize,
-                                               jboolean denoise) {
+                                            jshortArray pcmData,
+                                            jint channels,
+                                            jint frame_size,
+                                            jboolean denoise) {
     if (!g_enc) return OPE_INTERNAL_ERROR;
 
     jshort *pcm = env->GetShortArrayElements(pcmData, nullptr);
     jsize length = env->GetArrayLength(pcmData);
-    
+
     if (denoise == JNI_TRUE && g_state != nullptr) {
-        int total_frames = length / frameSize;
-        float in[frameSize], out[frameSize];
+        // Number of complete frames in this buffer
+        int total_frames = length / (channels * frame_size);
 
         for (int f = 0; f < total_frames; f++) {
-            for (int i = 0; i < frameSize; i++) {
-                in[i] = static_cast<float>(pcm[f * frameSize + i]);
+            float x[frame_size];
+
+            // Convert jshort â†’ float for one frame
+            for (int i = 0; i < frame_size; i++) {
+                x[i] = pcm[f * frame_size * channels + i];
             }
-            rnnoise_process_frame(g_state, out, in);
-            for (int i = 0; i < frameSize; i++) {
-                pcm[f * frameSize + i] = static_cast<jshort>(out[i]);
+
+            // Denoise in place
+            rnnoise_process_frame(g_state, x, x);
+
+            // Convert float â†’ jshort back
+            for (int i = 0; i < frame_size; i++) {
+                pcm[f * frame_size * channels + i] = (jshort)x[i];
             }
         }
     }
 
-    int err = ope_encoder_write(g_enc, (const opus_int16*)pcm,length / channels);
+    // Encode the (possibly denoised) PCM
+    int err = ope_encoder_write(g_enc, (const opus_int16*)pcm, length / channels);
 
     env->ReleaseShortArrayElements(pcmData, pcm, 0);
     return err;
@@ -281,7 +289,7 @@ Java_com_theeasiestway_opus_Opus_getAmplitude(JNIEnv* env, jobject thiz, jbyteAr
     }
 
     env->ReleaseByteArrayElements(pcmData, buf, JNI_ABORT);
-    return maxAmp; // 0â€“32767
+    return maxAmp; // 0Ã¢â‚¬â€œ32767
 }
 
 /**
@@ -292,7 +300,7 @@ Java_com_theeasiestway_opus_Opus_getPosition(JNIEnv* env, jobject thiz) {
     if (!opusFile) return -1;
     ogg_int64_t posSamples = op_pcm_tell(opusFile);
     if (posSamples < 0) return -1;
-    return posSamples / 48; // convert samples Ã¢â€ â€™ ms (48 samples per ms at 48kHz)
+    return posSamples / 48; // convert samples ÃƒÂ¢Ã¢â‚¬ Ã¢â‚¬â„¢ ms (48 samples per ms at 48kHz)
 }
 
 /**
@@ -303,7 +311,7 @@ Java_com_theeasiestway_opus_Opus_getDuration(JNIEnv* env, jobject thiz) {
     if (!opusFile) return -1;
     ogg_int64_t totalSamples = op_pcm_total(opusFile, -1); 
     if (totalSamples < 0) return -1;
-    return totalSamples / 48; // convert samples Ã¢â€ â€™ ms
+    return totalSamples / 48; // convert samples ÃƒÂ¢Ã¢â‚¬ Ã¢â‚¬â„¢ ms
 }
 
 
