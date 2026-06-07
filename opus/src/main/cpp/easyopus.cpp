@@ -180,15 +180,15 @@ JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
                                                jshortArray pcmData,
                                                jint channels,
-   jint frame_size,
                                                jboolean denoise) {
     if (!g_enc) return OPE_INTERNAL_ERROR;
 
     jshort *pcm = env->GetShortArrayElements(pcmData, nullptr);
     jsize length = env->GetArrayLength(pcmData);
-
+    int frame_size = length / channels
+    
     if (denoise == JNI_TRUE && g_state != nullptr) {
-        int total_frames = length / frame_size;
+        int total_frames = length / frame_size
         float in[frame_size], out[frame_size];
 
         for (int f = 0; f < total_frames; f++) {
@@ -202,7 +202,7 @@ Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
         }
     }
 
-    int err = ope_encoder_write(g_enc, (const opus_int16*)pcm, length / channels);
+    int err = ope_encoder_write(g_enc, (const opus_int16*)pcm,frame_size);
 
     env->ReleaseShortArrayElements(pcmData, pcm, 0);
     return err;
