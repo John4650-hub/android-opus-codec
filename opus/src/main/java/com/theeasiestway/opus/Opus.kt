@@ -78,7 +78,7 @@ class Opus {
     external fun convert(shorts: ShortArray): ByteArray?
     // opusenc save
     external fun oggEncoderInit(path: String, sampleRate: Int, channels: Int, family: Int): Int
-    external fun writeChunk(pcmData: ShortArray, channels: Int): Int
+    external fun writeChunk(pcmData: ShortArray, channels: Int,frameSize:Int,denoising:Boolean): Int
     external fun closeOggEncoder()
     //opusfile
     external fun openFile(fileName:String):Int
@@ -88,4 +88,8 @@ class Opus {
     external fun getPosition():Long
     external fun getDuration():Long
     external fun closeFile()
+    //rnnoise
+    external fun denoiserInit()
+    external fun denoiserProcess(pcmData:ShortArray,frameSize:Int):ShortArray
+    external fun denoiserDestroy()
 }
