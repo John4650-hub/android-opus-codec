@@ -180,29 +180,29 @@ JNIEXPORT jint JNICALL
 Java_com_theeasiestway_opus_Opus_writeChunk(JNIEnv *env, jobject thiz,
                                                jshortArray pcmData,
                                                jint channels,
+                                                jint frameSize,
                                                jboolean denoise) {
     if (!g_enc) return OPE_INTERNAL_ERROR;
 
     jshort *pcm = env->GetShortArrayElements(pcmData, nullptr);
     jsize length = env->GetArrayLength(pcmData);
-    int frame_size = length / channels
     
     if (denoise == JNI_TRUE && g_state != nullptr) {
-        int total_frames = length / frame_size
-        float in[frame_size], out[frame_size];
+        int total_frames = length / frameSize
+        float in[frameSize], out[frameSize];
 
         for (int f = 0; f < total_frames; f++) {
-            for (int i = 0; i < frame_size; i++) {
-                in[i] = static_cast<float>(pcm[f * frame_size + i]);
+            for (int i = 0; i < frameSize; i++) {
+                in[i] = static_cast<float>(pcm[f * frameSize + i]);
             }
             rnnoise_process_frame(g_state, out, in);
-            for (int i = 0; i < frame_size; i++) {
-                pcm[f * frame_size + i] = static_cast<jshort>(out[i]);
+            for (int i = 0; i < frameSize; i++) {
+                pcm[f * frameSize + i] = static_cast<jshort>(out[i]);
             }
         }
     }
 
-    int err = ope_encoder_write(g_enc, (const opus_int16*)pcm,frame_size);
+    int err = ope_encoder_write(g_enc, (const opus_int16*)pcm,length / channels);
 
     env->ReleaseShortArrayElements(pcmData, pcm, 0);
     return err;
